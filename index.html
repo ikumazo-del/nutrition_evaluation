@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="栄養判定">
+<meta name="apple-mobile-web-app-title" content="栄養評価">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#eef1f8">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-512.png">
 <title>栄養スクリーニング一発判定</title>
 <style>
 :root{--bg:#eef1f8;--card:#fff;--blue:#2b6fd9;--blue-s:#e4edfb;--green:#1f9d78;--ink:#25324b;--mute:#7c89a3;--line:#dfe5f0;
@@ -28,6 +30,7 @@ box-shadow:0 3px 8px rgba(40,60,100,.12)}
 .seg button.on{background:var(--blue);color:#fff}
 .bmi{font-size:11px;color:var(--mute);line-height:1}
 .bmi b{font-size:24px;color:var(--green);margin-right:2px;letter-spacing:-.02em}
+.ver{font-size:9.5px;color:#a3aec4;letter-spacing:.02em;white-space:nowrap;align-self:flex-end;padding-bottom:3px}
 .cnt{margin-left:auto;font-size:11px;color:var(--mute);text-align:right;line-height:1.15}
 .cnt b{font-size:20px;color:var(--c3)}
 .chips{display:grid;gap:5px;margin-bottom:5px}
@@ -108,6 +111,7 @@ body.sheetopen .wrap{padding-bottom:46vh}
 <div class="top">
   <div class="bar">
     <div class="bmi"><b id="bmi">--</b>BMI</div>
+    <div class="ver" id="ver"></div>
     <div class="cnt" id="cnt"></div>
   </div>
   <div class="chips r5" id="chips1"></div>
@@ -121,7 +125,7 @@ body.sheetopen .wrap{padding-bottom:46vh}
 <div class="sheet" id="sheet" role="dialog" aria-label="計算の内訳"></div>
 
 <script>
-const APP_VER='0.2.0';
+const APP_VER='1.2.1';
 //CALC-START
 const PERIODS=[1,2,3,6,12];
 // Lorentz式の標準体重(Bouillanne 2005, GNRIの原法)
@@ -307,6 +311,7 @@ $('g_all').innerHTML=cardNum('h')+cardNum('w')+cardNum('age')+cardNum('pw')+card
 function chipHTML(n){return `<div class="chip ln" id="ch_${n}" data-n="${n}"><div class="n"></div><div class="m"></div><div class="s"></div></div>`}
 $('chips1').innerHTML=CHIP1.map(chipHTML).join('');
 $('chips2').innerHTML=CHIP2.map(chipHTML).join('');
+$('ver').textContent='栄養評価 v'+APP_VER;
 $('note').innerHTML='※判定は参考情報です。診断・治療方針の決定は臨床判断に基づいて行ってください。結果欄をタップすると、その評価法に関わる入力が強調され、計算の内訳と出典が開きます。 v'+APP_VER;
 
 function clamp(v,a,b){return Math.min(b,Math.max(a,v))}

@@ -1,7 +1,7 @@
 // 栄養スクリーニング一発判定 — Service Worker
 // 版数は index.html の APP_VER と揃えること
-const CACHE_NAME='nutrition-screening-v0.2.0';
-const ASSETS=['./','./index.html'];
+const CACHE_NAME='nutrition-screening-v1.2.1';
+const ASSETS=['./','./index.html','./icon-180.png','./icon-512.png'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
