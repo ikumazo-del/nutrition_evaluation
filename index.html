@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="栄養判定">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef1f8">
+<title>栄養スクリーニング一発判定</title>
+<style>
+:root{--bg:#eef1f8;--card:#fff;--blue:#2b6fd9;--blue-s:#e4edfb;--green:#1f9d78;--ink:#25324b;--mute:#7c89a3;--line:#dfe5f0;
+--c0:#1f9d78;--c1:#d9a100;--c2:#ec7a1c;--c3:#d63c3c;--cn:#9aa5b8;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+font-family:"Noto Sans JP","Noto Sans CJK JP",-apple-system,"Hiragino Sans",sans-serif;
+-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.wrap{max-width:440px;margin:0 auto;padding:0 8px calc(14px + env(safe-area-inset-bottom))}
+
+/* ---- 上部固定：性別・BMI・件数 と 8手法の結果 ---- */
+.top{position:sticky;top:0;z-index:20;margin:0 -8px;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;background:var(--bg);
+box-shadow:0 3px 8px rgba(40,60,100,.12)}
+.bar{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;font-weight:700;font-size:13px;color:var(--mute);padding:4px 11px;border-radius:8px}
+.seg button.on{background:var(--blue);color:#fff}
+.bmi{font-size:11px;color:var(--mute);line-height:1}
+.bmi b{font-size:24px;color:var(--green);margin-right:2px;letter-spacing:-.02em}
+.cnt{margin-left:auto;font-size:11px;color:var(--mute);text-align:right;line-height:1.15}
+.cnt b{font-size:20px;color:var(--c3)}
+.chips{display:grid;gap:5px;margin-bottom:5px}
+.chips:last-child{margin-bottom:0}
+.r5{grid-template-columns:repeat(5,1fr)}
+.r3{grid-template-columns:repeat(3,1fr)}
+.chip{background:#fff;border-radius:9px;border:1px solid var(--line);border-bottom:4px solid var(--cn);
+padding:3px 2px 2px;text-align:center;cursor:pointer;min-width:0;line-height:1.15}
+.chip .n{font-size:10px;color:var(--mute);font-weight:700;white-space:nowrap}
+.chip .m{font-size:18px;font-weight:800;line-height:1.15;white-space:nowrap}
+.chip .s{font-size:9.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.fo{outline:2px solid var(--blue);outline-offset:1px}
+.l0{border-bottom-color:var(--c0)}.l0 .m{color:var(--c0)}
+.l1{border-bottom-color:var(--c1)}.l1 .m{color:var(--c1)}
+.l2{border-bottom-color:var(--c2)}.l2 .m{color:var(--c2)}
+.l3{border-bottom-color:var(--c3)}.l3 .m{color:var(--c3)}
+.ln .m{color:var(--cn)}
+
+/* ---- 入力カード ---- */
+h2{font-size:10.5px;color:var(--mute);margin:8px 4px 3px;letter-spacing:.1em;font-weight:700;display:flex;gap:6px;align-items:center}
+h2 small{font-weight:500;letter-spacing:0;font-size:9.5px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:5px}
+.cd{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 8px 3px;min-width:0;transition:opacity .15s}
+.cd.off{opacity:.35;pointer-events:none}
+.l1r{display:flex;align-items:baseline;justify-content:space-between;gap:4px;min-height:17px;white-space:nowrap}
+.nm{font-size:11.5px;font-weight:700;color:var(--mute)}
+.vl{font-size:17px;font-weight:800;color:var(--blue);letter-spacing:-.01em}
+.vl i{font-style:normal;font-size:9.5px;font-weight:600;color:var(--mute);margin-left:2px}
+.ht{font-size:9.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.ctl{display:flex;align-items:center;gap:4px;height:28px}
+.sb{flex:none;width:34px;height:27px;border-radius:9px;border:1px solid var(--line);background:#eef1f8;font-size:20px;font-weight:700;color:#4a5876;line-height:1;padding:0}
+.sb:active{background:#d3def4}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:6px;border-radius:3px;background:#dfe5f0;outline:none;margin:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.sgs{display:flex;gap:3px;height:27px;margin:1px 0 0}
+.sg{flex:1;min-width:0;border:1px solid var(--line);background:#eef1f8;border-radius:8px;font-size:11.5px;font-weight:700;color:#5b6882;padding:0 1px;white-space:nowrap}
+.sg.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.sg.on.w1{background:var(--c1);border-color:var(--c1)}
+.sg.on.w2{background:var(--c2);border-color:var(--c2)}
+.sg.on.w3{background:var(--c3);border-color:var(--c3)}
+.tgc{display:flex;flex-direction:column;justify-content:center;text-align:left;cursor:pointer}
+.tgc .l1r{align-items:center}
+.sw{flex:none;width:30px;height:18px;border-radius:9px;background:#cfd7e6;position:relative;transition:background .15s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:left .15s}
+.tgc[aria-pressed=true]{border-color:var(--blue);background:var(--blue-s)}
+.tgc[aria-pressed=true] .sw{background:var(--blue)}
+.tgc[aria-pressed=true] .sw::after{left:14px}
+.tgc .nm{color:var(--ink)}
+/* 関連する評価法のバッジ */
+.bd{display:flex;flex-wrap:wrap;gap:2px 3px;margin-top:1px;min-height:11px}
+.bd span{font-size:8.5px;line-height:11px;font-weight:700;color:#8793ad;letter-spacing:.01em}
+.bd span+span::before{content:"·";margin-right:3px;color:#c3cbdb}
+.bd span.on{color:#fff;background:var(--blue);border-radius:3px;padding:0 3px;margin:0 -1px}
+.bd span.on::before{display:none}
+.focusing .cd:not(.rel){opacity:.4}
+.cd.rel{box-shadow:0 0 0 2px var(--blue)}
+
+/* ---- 詳細シート ---- */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:440px;margin:0 auto;background:#fff;border-radius:16px 16px 0 0;
+box-shadow:0 -6px 24px rgba(30,50,90,.28);padding:10px 14px calc(12px + env(safe-area-inset-bottom));max-height:46vh;overflow:auto;
+transform:translateY(105%);transition:transform .22s ease}
+.sheet.open{transform:none}
+.sh{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.sh .t{font-size:15px;font-weight:800}
+.sh .r{font-size:13px;font-weight:700;color:var(--mute)}
+.sh .x{margin-left:auto;border:0;background:#eef1f8;border-radius:50%;width:28px;height:28px;font-size:15px;color:#4a5876;padding:0}
+.cf{display:inline-block;font-size:10.5px;border-radius:6px;padding:1px 7px;font-weight:700;margin-bottom:4px}
+.cf.ok{background:#dff3ec;color:#177a5d}.cf.ap{background:#fdf0d4;color:#9a6c00}.cf.es{background:#fde1e1;color:#a52b2b}.cf.rf{background:#e4e9f4;color:#4a5876}
+.sb2{font-size:12.5px;line-height:1.65}
+.src{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);font-size:10.5px;color:var(--mute);line-height:1.55}
+.note{font-size:10px;color:var(--mute);line-height:1.6;margin:8px 4px 0}
+body.sheetopen .wrap{padding-bottom:46vh}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+<div class="top">
+  <div class="bar">
+    <div class="bmi"><b id="bmi">--</b>BMI</div>
+    <div class="cnt" id="cnt"></div>
+  </div>
+  <div class="chips r5" id="chips1"></div>
+  <div class="chips r3" id="chips2"></div>
+</div>
+
+<div class="g" id="g_all"></div>
+<div class="note" id="note"></div>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-label="計算の内訳"></div>
+
+<script>
+const APP_VER='0.2.0';
+//CALC-START
+const PERIODS=[1,2,3,6,12];
+// Lorentz式の標準体重(Bouillanne 2005, GNRIの原法)
+function lorentz(h,sex){return sex==='M'?h-100-(h-150)/4:h-100-(h-150)/2.5;}
+// 状態 s: 選択式の値はすべて「0=問題なし → 数字が大きいほど悪い」
+//  intake 0通常/1軽度/2中等度/3高度  sev 0なし/1軽度/2中等度/3重度  mob 0外出可/1室内/2臥床
+//  cog 0なし/1軽〜中/2重度  fat,mus 0なし/1軽〜中/2高度
+function calc(s){
+  const hm=s.h/100, bmi=s.w/(hm*hm);
+  const lossKg=Math.max(0,s.pw-s.w), loss=lossKg/s.pw*100;
+  const P=PERIODS[s.pi];
+  const o={};
+  const NA=()=>({main:'—',sub:'採血なし',level:-1,conf:'ok',lines:['採血データなし(スイッチをオンにして入力)']});
+
+  // ---- MUST (BAPEN: Elia 2003)  BMI>20:0 / 18.5–20:1 / <18.5:2、体重減少 <5%:0 / 5–10%:1 / >10%:2、急性疾患で5日超の絶食:+2
+  {
+    const b=bmi>20?0:(bmi>=18.5?1:2);
+    const w=loss<5?0:(loss<=10?1:2);
+    const a=s.npo?2:0, t=b+w+a;
+    o.MUST={main:String(t),sub:t===0?'低リスク':(t===1?'中リスク':'高リスク'),level:t===0?0:(t===1?1:3),conf:'ok',
+      lines:['BMIスコア '+b+'(BMI '+bmi.toFixed(1)+')',
+        '体重減少スコア '+w+'('+loss.toFixed(1)+'% / '+P+'か月'+(P>6?'・原法は3〜6か月。参考値':'')+')',
+        '急性疾患の影響 '+a+'(5日以上ほぼ絶食:'+(s.npo?'あり':'なし')+')',
+        '合計 '+t+'(0=低 / 1=中 / ≥2=高リスク)'],
+      src:'BAPEN「MUST」報告書(Elia, 2003) Step1–4の表、PDF p.63'};
+  }
+  // ---- NRS-2002 (Kondrup 2003)
+  {
+    const q1=bmi<20.5, q2=(P<=3&&lossKg>0), q3=s.intake>=1, q4=s.sev===3;
+    const init=q1||q2||q3||q4;
+    let wl=0;
+    if(P<=3&&loss>5){wl=P<=1?3:(P<=2?2:1);} if(P<=3&&loss>15)wl=3;
+    const impaired=s.mob>=1;
+    let bs=0; if(bmi<18.5&&impaired)bs=3; else if(bmi>=18.5&&bmi<20.5&&impaired)bs=2;
+    const is=s.intake;
+    const nut=Math.max(wl,bs,is);
+    const dis=s.sev, ag=s.age>=70?1:0;
+    const t=nut+dis+ag;
+    const lines=['初期スクリーニング(BMI<20.5 / 3か月内の体重減少 / 直近1週の摂取減 / 重症)→ '+(init?'陽性(最終へ)':'すべて陰性')];
+    const src='Kondrup J, et al. Clin Nutr 2003;22:321 Table 1–2、PDF p.6';
+    if(!init){
+      o.NRS={main:'—',sub:'初期陰性',level:0,conf:'ap',lines:lines.concat(['最終スクリーニング不要(原法では週1回再評価)']),src};
+    }else{
+      o.NRS={main:String(t),sub:t>=3?'リスクあり':'リスクなし',level:t>=3?2:0,conf:'ap',
+        lines:lines.concat(['栄養障害スコア '+nut+'(体重減少 '+wl+' / BMI+全身状態 '+bs+' / 摂取量 '+is+' の最大値)','疾患重症度スコア '+dis,'年齢≥70歳 +'+ag,'合計 '+t+'(≥3で栄養リスクあり)','※「全身状態不良」は移動能力(室内以下)で代用']),src};
+    }
+  }
+  // ---- MNA-SF (日本語版用紙 / Kaiser 2009)
+  {
+    const A=[2,1,1,0][s.intake];
+    const kg3=P<=3?lossKg:lossKg*3/P;
+    const B=kg3>=3?0:(kg3>=1?2:3);
+    const C=2-s.mob;
+    const D=(s.sev>=2||s.npo)?0:2;
+    const E=2-s.cog;
+    const F=bmi<19?0:(bmi<21?1:(bmi<23?2:3));
+    const t=A+B+C+D+E+F;
+    o.MNA={main:String(t),sub:t>=12?'良好':(t>=8?'低栄養のおそれ':'低栄養'),level:t>=12?0:(t>=8?2:3),conf:'ap',
+      lines:['A 食事量の減少 '+A+'(通常=2 / 軽〜中等度減=1 / 高度減=0)',
+        'B 3か月の体重減少 '+B+'('+kg3.toFixed(1)+'kg'+(P>3?'・3か月分に按分':'')+'。3kg以上=0 / 1〜3kg=2 / 1kg未満=3)',
+        'C 移動能力 '+C,'D 精神的ストレス・急性疾患 '+D+'(重症度≥中等度 または 絶食で「あり」)','E 神経・精神的問題 '+E,
+        'F1 BMI '+F+'(<19=0 / 19–21=1 / 21–23=2 / ≥23=3)','合計 '+t+'/14(12–14良好 / 8–11おそれ / 0–7低栄養)'],
+      src:'日本語版MNA-SF用紙(Nestlé, 2009改訂) p.1 / Kaiser MJ, J Nutr Health Aging 2009;13:782'};
+  }
+  // ---- GLIM (Cederholm 2019 + 日本語概説 JSPEN 2024.10)
+  {
+    const wlPh=(P<=6&&loss>5)||(P>6&&loss>10);
+    const bTh=s.age<70?18.5:20;
+    const bmiPh=bmi<bTh, musPh=s.mus>=1;
+    const pheno=wlPh||bmiPh||musPh;
+    const intakePh=s.intake>=2;
+    const etio=intakePh||s.gi||s.sev>=1||s.npo;
+    const dx=pheno&&etio;
+    const sevWl=(P<=6&&loss>10)||(P>6&&loss>20), sevMus=s.mus===2;
+    const severe=sevWl||sevMus;
+    const scr=(o.MUST.level>=1)||(o.NRS.level>=2)||(o.MNA.level>=2);
+    o.GLIM={main:dx?(severe?'重度':'中等度'):'なし',sub:dx?'低栄養':'基準非該当',level:!dx?0:(severe?3:2),conf:'ap',
+      lines:['事前スクリーニング(MUST/NRS/MNA-SFのいずれか)'+(scr?'陽性':'陰性')+(!scr&&dx?'  ※原法では陰性なら診断評価の対象外':''),
+        '現症(≥1):体重減少 '+(wlPh?'○':'×')+' / 低BMI(<'+bTh+') '+(bmiPh?'○':'×')+' / 筋量低下 '+(musPh?'○':'×')+' → '+(pheno?'該当':'非該当'),
+        '病因(≥1):摂取≤50% '+(intakePh?'○':'×')+' / 消化器症状 '+(s.gi?'○':'×')+' / 疾患・炎症 '+(s.sev>=1?'○':'×')+(s.npo?' / 絶食 ○':'')+' → '+(etio?'該当':'非該当'),
+        '重症度:体重減少>10%(6か月内)または>20%(6か月超)、筋量の高度減少のいずれかで重度、なければ中等度',
+        '※低BMIの重症度基準は日本人の値が未設定のため判定に使用しない / 筋量は診察の筋肉減少で代用'],
+      src:'Cederholm T, et al. Clin Nutr 2019;38:1 Table 3–4、PDF p.4–5 / GLIM日本語概説(JSPEN, 2024.10.10) p.1'};
+  }
+  // ---- 採血系
+  if(!s.labs){ o.CONUT=NA(); o.GNRI=NA(); o.PNI=NA(); }
+  else{
+    // CONUT (Ignacio de Ulíbarri 2005) Alb 3.5–4.5:0 / 3.0–3.49:2 / 2.5–2.9:4 / <2.5:6、Lym >1600:0 / 1200–1599:1 / 800–1199:2 / <800:3、T-Chol >180:0 / 140–180:1 / 100–139:2 / <100:3
+    const a=s.alb>=3.5?0:(s.alb>=3.0?2:(s.alb>=2.5?4:6));
+    const l=s.tlc>=1600?0:(s.tlc>=1200?1:(s.tlc>=800?2:3));
+    const c=s.tc>180?0:(s.tc>=140?1:(s.tc>=100?2:3));
+    const t=a+l+c;
+    o.CONUT={main:String(t),sub:t<=1?'正常':(t<=4?'軽度':(t<=8?'中等度':'高度')),level:t<=1?0:(t<=4?1:(t<=8?2:3)),conf:'ok',
+      lines:['アルブミン '+s.alb.toFixed(1)+' → '+a,'リンパ球数 '+s.tlc+' → '+l,'総コレステロール '+s.tc+' → '+c+(s.tc===180?'(原表では180は140–180の区分)':''),
+        '合計 '+t+'(0–1正常 / 2–4軽度 / 5–8中等度 / 9–12高度)'],
+      src:'Ignacio de Ulíbarri J, et al. Nutr Hosp 2005;20:38 Table I、PDF p.3'};
+    // GNRI (Bouillanne 2005) 14.89×Alb(g/dL) + 41.7×(体重/Lorentz標準体重、上限1)
+    const ibw=22*hm*hm, ratio=Math.min(1,s.w/ibw);
+    const g=14.89*s.alb+41.7*ratio;
+    const wlo=lorentz(s.h,'F'), gLo=14.89*s.alb+41.7*Math.min(1,s.w/wlo), gLoM=14.89*s.alb+41.7*Math.min(1,s.w/lorentz(s.h,'M'));
+    o.GNRI={main:g.toFixed(1),sub:g>98?'リスクなし':(g>=92?'低リスク':(g>=82?'中等度':'高度')),level:g>98?0:(g>=92?1:(g>=82?2:3)),conf:'jp',
+      lines:['標準体重(BMI22) '+ibw.toFixed(1)+'kg、体重/標準体重 '+(s.w/ibw).toFixed(2)+(s.w>ibw?'(1.00に丸め)':''),
+        '14.89×Alb('+s.alb.toFixed(1)+') + 41.7×'+ratio.toFixed(2)+' = '+g.toFixed(1),
+        '(>98なし / 92–98低 / 82–<92中等度 / <82高度)',
+        '参考:原法のLorentz式では 男性 '+gLoM.toFixed(1)+' / 女性 '+gLo.toFixed(1)],
+      src:'式・区分:Bouillanne O, et al. Am J Clin Nutr 2005;82:777 式(5)、PDF p.2。標準体重は日本人向けにBMI22(原法はLorentz式)'};
+    // PNI (小野寺法) 10×Alb + 0.005×リンパ球数。40/45は目安として扱う
+    const p=10*s.alb+0.005*s.tlc;
+    o.PNI={main:p.toFixed(1),sub:p>=45?'良好':(p>=40?'注意':'高リスク'),level:p>=45?0:(p>=40?1:3),conf:'rf',
+      lines:['10×Alb('+s.alb.toFixed(1)+') + 0.005×リンパ球数('+s.tlc+') = '+p.toFixed(1),'(≥45良好 / 40–<45注意 / <40高リスク)',
+        '※カットオフは目安。原典の測定条件(Alb測定法・周術期管理)は現在と異なる'],
+      src:'小野寺法(日本外科学会雑誌 1984)。原典PDFは未入手のため、式とカットオフは既定値(要確認)'};
+  }
+  // ---- SGA相当(Detsky 1987は主観的総合判定。ここでは4つの主要所見から推定)
+  {
+    const wlCat=loss>10?2:(loss>=5?1:0);          // <5% small / 5–10% potentially / >10% definitely significant
+    const wlEff=Math.max(0,wlCat-(s.edema?1:0));  // 浮腫・腹水があれば体重減少の重みを割り引く
+    const key=[wlEff>=1,s.intake>=2,s.fat>=1,s.mus>=1];
+    const n=key.filter(Boolean).length;
+    const severeSign=(s.fat===2||s.mus===2);
+    let g='A';
+    if(wlEff===2&&severeSign) g='C';
+    else if(n>=2||wlEff===2||severeSign) g='B';
+    o.SGA={main:g,sub:g==='A'?'良好':(g==='B'?'中等度/疑い':'高度'),level:g==='A'?0:(g==='B'?2:3),conf:'es',
+      lines:['主要4所見(体重減少≥5% / 明らかな摂取減 / 皮下脂肪減少 / 筋肉減少)該当 '+n+'/4',
+        '体重減少 '+loss.toFixed(1)+'%('+['<5%','5–10%','>10%'][wlCat]+')'+(s.edema&&wlCat>0?' → 浮腫・腹水ありのため1段階割引':''),
+        '皮下脂肪 '+['なし','軽〜中','高度'][s.fat]+' / 筋肉 '+['なし','軽〜中','高度'][s.mus],
+        'C:体重減少>10% かつ 高度の身体所見。B:主要所見2つ以上、または >10%、または高度の身体所見。他はA',
+        '※本来は診察に基づく主観的判定。ここは「SGA相当」の推定(迷えばAとする原法の方針)'],
+      src:'Detsky AS, et al. JPEN 1987;11:8 、PDF p.1–2'};
+  }
+  return {bmi,loss,out:o};
+}
+//CALC-END
+
+/* ================= UI ================= */
+const NAME={SGA:'SGA',MUST:'MUST',GLIM:'GLIM',NRS:'NRS-2002',MNA:'MNA-SF',CONUT:'CONUT',GNRI:'GNRI',PNI:'PNI'};
+const CHIP1=['MUST','NRS','MNA','SGA','GLIM'], CHIP2=['CONUT','GNRI','PNI'], ORDER=CHIP1.concat(CHIP2);
+const CONF={ok:['cf ok','原典と一致'],ap:['cf ap','近似(代用項目・按分あり)'],es:['cf es','推定(判定規則は当アプリ独自)'],rf:['cf rf','目安(原典未入手)'],jp:['cf ok','式は原典一致・標準体重は日本標準(BMI22)']};
+// 入力 → その入力を使う評価法
+const USES={
+ h:['MUST','NRS','MNA','GLIM','GNRI'],w:['MUST','NRS','MNA','SGA','GLIM','GNRI'],age:['NRS','GLIM'],
+ pw:['MUST','NRS','MNA','SGA','GLIM'],pi:['NRS','MNA','GLIM'],
+ intake:['NRS','MNA','SGA','GLIM'],sev:['NRS','MNA','GLIM'],mob:['NRS','MNA'],cog:['MNA'],
+ fat:['SGA'],mus:['SGA','GLIM'],npo:['MUST','MNA','GLIM'],gi:['GLIM'],edema:['SGA'],
+ alb:['CONUT','GNRI','PNI'],tlc:['CONUT','PNI'],tc:['CONUT']
+};
+const s={sex:'F',h:139,w:42,age:80,pw:42,pi:2,intake:0,sev:0,mob:0,cog:0,fat:0,mus:0,
+  npo:false,gi:false,edema:false,labs:true,alb:3.5,tlc:1500,tc:160};
+const NUM={
+ h:{lab:'身長',unit:'cm',min:100,max:200,step:1,dec:0},
+ w:{lab:'体重',unit:'kg',min:20,max:120,step:0.5,dec:1},
+ age:{lab:'年齢',unit:'歳',min:18,max:110,step:1,dec:0},
+ pw:{lab:'以前の体重',unit:'kg',min:20,max:120,step:0.5,dec:1},
+ alb:{lab:'アルブミン',unit:'g/dL',min:1.0,max:5.0,step:0.1,dec:1},
+ tlc:{lab:'リンパ球数',unit:'/μL',min:200,max:3000,step:50,dec:0},
+ tc:{lab:'T-Chol',unit:'mg/dL',min:60,max:300,step:5,dec:0}
+};
+const OPT={
+ pi:{lab:'以前の体重の時期',opts:['1','2','3','6','12'],hint:(R)=>PERIODS[s.pi]+'か月前 −'+R.loss.toFixed(1)+'%'},
+ intake:{lab:'食事摂取量',opts:['通常','軽度','中等度','高度'],hints:['≥75%','50–75%','25–50%','≤25%']},
+ sev:{lab:'疾患の重症度',opts:['なし','軽度','中等度','重度'],hints:['','慢性疾患・骨折・がん','大手術・脳卒中','ICU・移植']},
+ mob:{lab:'移動能力',opts:['外出可','室内','臥床'],hints:['自力で外出','室内なら可','寝たきり等']},
+ cog:{lab:'認知・抑うつ',opts:['なし','軽〜中','重度'],hints:['問題なし','軽〜中等度の認知症','重度認知症・うつ']},
+ fat:{lab:'皮下脂肪減少',opts:['なし','軽〜中','高度'],hints:['','軽度〜中等度','高度']},
+ mus:{lab:'筋肉の減少',opts:['なし','軽〜中','高度'],hints:['','軽度〜中等度','高度']}
+};
+const TAGS={npo:'5日以上ほぼ絶食',gi:'消化器症状 2週↑',edema:'浮腫・腹水',labs:'採血データあり'};
+const $=id=>document.getElementById(id);
+let focus=null;
+
+function badges(k){return '<div class="bd">'+USES[k].map(n=>`<span data-m="${n}">${NAME[n]==='NRS-2002'?'NRS':NAME[n]}</span>`).join('')+'</div>';}
+function cardNum(k){const c=NUM[k];
+ return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span><span class="vl"><span id="v_${k}"></span><i>${c.unit}</i></span></div>
+ <div class="ctl"><button class="sb" data-k="${k}" data-d="-1" aria-label="${c.lab}を減らす">−</button><input type="range" data-k="${k}" min="${c.min}" max="${c.max}" step="${c.step}" aria-label="${c.lab}"><button class="sb" data-k="${k}" data-d="1" aria-label="${c.lab}を増やす">＋</button></div>${badges(k)}</div>`}
+function cardOpt(k){const c=OPT[k];
+ return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span><span class="ht" id="h_${k}"></span></div>
+ <div class="sgs">${c.opts.map((t,i)=>`<button class="sg" data-k="${k}" data-v="${i}">${t}</button>`).join('')}</div>${badges(k)}</div>`}
+function cardTog(k){
+ return `<button class="cd tgc" id="c_${k}" data-in="${k}" data-t="${k}" aria-pressed="false"><div class="l1r"><span class="nm">${TAGS[k]}</span><span class="sw"></span></div>${USES[k]?badges(k):'<div class="bd"><span>CONUT</span><span>GNRI</span><span>PNI</span></div>'}</button>`}
+
+$('g_all').innerHTML=cardNum('h')+cardNum('w')+cardNum('age')+cardNum('pw')+cardOpt('pi')+cardOpt('intake')+cardOpt('sev')+cardOpt('mob')+cardOpt('cog')+cardOpt('fat')+cardOpt('mus')+cardTog('npo')+cardTog('gi')+cardTog('edema')+cardNum('alb')+cardNum('tlc')+cardNum('tc')+cardTog('labs');
+function chipHTML(n){return `<div class="chip ln" id="ch_${n}" data-n="${n}"><div class="n"></div><div class="m"></div><div class="s"></div></div>`}
+$('chips1').innerHTML=CHIP1.map(chipHTML).join('');
+$('chips2').innerHTML=CHIP2.map(chipHTML).join('');
+$('note').innerHTML='※判定は参考情報です。診断・治療方針の決定は臨床判断に基づいて行ってください。結果欄をタップすると、その評価法に関わる入力が強調され、計算の内訳と出典が開きます。 v'+APP_VER;
+
+function clamp(v,a,b){return Math.min(b,Math.max(a,v))}
+function setVal(k,v){const c=NUM[k];v=Math.round(clamp(v,c.min,c.max)/c.step)*c.step;s[k]=+v.toFixed(2);}
+function stepBtn(b){const k=b.dataset.k;setVal(k,s[k]+(+b.dataset.d)*NUM[k].step);update();}
+
+document.addEventListener('pointerdown',e=>{
+  const b=e.target.closest('.sb');if(!b)return;
+  e.preventDefault();stepBtn(b);
+  let rep=null;const t=setTimeout(()=>{rep=setInterval(()=>stepBtn(b),85)},420);
+  const stop=()=>{clearTimeout(t);clearInterval(rep);document.removeEventListener('pointerup',stop);document.removeEventListener('pointercancel',stop);};
+  document.addEventListener('pointerup',stop);document.addEventListener('pointercancel',stop);
+});
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.sb,.sg,.tgc,.chip'))e.preventDefault();});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button,.chip');if(!b)return;
+  if(b.classList.contains('sb')){if(e.detail===0)stepBtn(b);return;}   // タッチ/マウスはpointerdownで処理済み。キーボードのみここで処理
+  if(b.dataset.t){s[b.dataset.t]=!s[b.dataset.t];update();return;}
+  if(b.classList.contains('sg')){s[b.dataset.k]=+b.dataset.v;update();return;}
+  if(b.parentElement&&b.parentElement.id==='sex'){s.sex=b.dataset.v;update();return;}
+  if(b.id==='sx'){setFocus(null);return;}
+  if(b.classList.contains('chip')){setFocus(focus===b.dataset.n?null:b.dataset.n);}
+});
+document.addEventListener('input',e=>{const r=e.target;if(r.type==='range'){setVal(r.dataset.k,+r.value);update(true);}});
+
+function setFocus(n){
+  focus=n;
+  document.body.classList.toggle('sheetopen',!!n);
+  $('app').classList.toggle('focusing',!!n);
+  update();
+}
+let lastR=null;
+function update(fromSlider){
+  for(const k in NUM){const c=NUM[k];$('v_'+k).textContent=s[k].toFixed(c.dec);
+    const r=document.querySelector(`input[data-k="${k}"]`);if(!fromSlider||document.activeElement!==r)r.value=s[k];}
+  const R=calc(s);lastR=R;
+  for(const k in OPT){const c=OPT[k];
+    document.querySelectorAll(`.sg[data-k="${k}"]`).forEach(b=>{const v=+b.dataset.v;const on=v===s[k];
+      b.className='sg'+(on?' on':'')+(on&&v>0&&k!=='pi'?' w'+Math.min(3,v+(c.opts.length===3?1:0)):'');});
+    $('h_'+k).textContent=c.hint?c.hint(R):c.hints[s[k]];}
+  document.querySelectorAll('.tgc').forEach(t=>t.setAttribute('aria-pressed',String(!!s[t.dataset.t])));
+  document.querySelectorAll('#sex button').forEach(b=>b.classList.toggle('on',b.dataset.v===s.sex));
+  ['alb','tlc','tc'].forEach(k=>$('c_'+k).classList.toggle('off',!s.labs));
+  $('bmi').textContent=R.bmi.toFixed(1);
+  let risk=0,valid=0;
+  ORDER.forEach(n=>{
+    const r=R.out[n],ch=$('ch_'+n);
+    ch.className='chip '+(r.level<0?'ln':'l'+r.level)+(focus===n?' fo':'');
+    ch.querySelector('.n').textContent=NAME[n]+(n==='PNI'?'(目安)':'');
+    ch.querySelector('.m').textContent=r.main;ch.querySelector('.s').textContent=r.sub;
+    if(r.level>=0){valid++;if(r.level>=2)risk++;}
+  });
+  $('cnt').innerHTML=`中等度以上<br><b>${risk}</b> / ${valid} 手法`;
+  // 関連入力の強調
+  document.querySelectorAll('.cd').forEach(c=>{
+    const k=c.dataset.in,rel=focus&&(USES[k]||['CONUT','GNRI','PNI']).includes(focus);
+    c.classList.toggle('rel',!!rel);
+    c.querySelectorAll('.bd span').forEach(sp=>sp.classList.toggle('on',sp.dataset.m===focus||(focus==='NRS'&&sp.textContent==='NRS')));
+  });
+  // 詳細シート
+  const sh=$('sheet');
+  if(focus){
+    const r=R.out[focus],cf=CONF[r.conf];
+    sh.innerHTML=`<div class="sh"><span class="t">${NAME[focus]}</span><span class="r">${r.main}・${r.sub}</span><button class="x" id="sx" aria-label="閉じる">✕</button></div>
+      <span class="${cf[0]}">${cf[1]}</span><div class="sb2">${r.lines.join('<br>')}</div><div class="src">出典:${r.src}</div>`;
+    sh.classList.add('open');
+  }else sh.classList.remove('open');
+}
+update();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{try{navigator.serviceWorker.register('./sw.js').catch(()=>{});}catch(e){}});}
+</script>
+</body>
+</html>
