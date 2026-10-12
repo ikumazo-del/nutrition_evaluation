@@ -48,6 +48,7 @@ padding:3px 2px 2px;text-align:center;cursor:pointer;min-width:0;line-height:1.1
 .l2{border-bottom-color:var(--c2)}.l2 .m{color:var(--c2)}
 .l3{border-bottom-color:var(--c3)}.l3 .m{color:var(--c3)}
 .ln .m{color:var(--cn)}
+.chip.ref{opacity:.55}   /* v1.4.2: 参考値(MNA-SFで65歳未満)。タップは可能 */
 
 /* ---- 入力カード ---- */
 h2{font-size:10.5px;color:var(--mute);margin:8px 4px 3px;letter-spacing:.1em;font-weight:700;display:flex;gap:6px;align-items:center}
@@ -143,7 +144,7 @@ body.sheetopen .wrap{padding-bottom:52vh}
 <div class="sheet" id="sheet" role="dialog" aria-label="計算の内訳"></div>
 
 <script>
-const APP_VER='1.4.1';
+const APP_VER='1.4.2';
 //CALC-START
 const PERIODS=[1,2,3,6,12];
 // Lorentz式の標準体重(Bouillanne 2005, GNRIの原法)
@@ -452,7 +453,7 @@ function update(fromSlider){
   let risk=0,valid=0;
   ORDER.forEach(n=>{
     const r=R.out[n],ch=$('ch_'+n);
-    ch.className='chip '+(r.level<0?'ln':'l'+r.level)+(focus===n?' fo':'');
+    ch.className='chip '+(r.level<0?'ln':'l'+r.level)+(focus===n?' fo':'')+(n==='MNA'&&s.age<65?' ref':'');   // 件数(risk/valid)には含める
     ch.querySelector('.n').textContent=NAME[n]+(n==='PNI'?'(目安)':'');
     ch.querySelector('.m').textContent=r.main;ch.querySelector('.s').textContent=r.sub;
     ch.querySelector('.m').style.fontSize=(r.main.length>=4&&/[^\x00-\x7f]/.test(r.main))?'16px':'';   // 「病因なし」「現症なし」は幅に収める
