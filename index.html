@@ -143,7 +143,7 @@ body.sheetopen .wrap{padding-bottom:52vh}
 <div class="sheet" id="sheet" role="dialog" aria-label="計算の内訳"></div>
 
 <script>
-const APP_VER='1.3.1';
+const APP_VER='1.4.0';
 //CALC-START
 const PERIODS=[1,2,3,6,12];
 // Lorentz式の標準体重(Bouillanne 2005, GNRIの原法)
@@ -217,28 +217,37 @@ function calc(s){
     const bTh=s.age<70?18.5:20;
     const bmiPh=bmi<bTh, musPh=s.mus>=1;
     const pheno=wlPh||bmiPh||musPh;
-    const intakePh=s.intake>=2;
+    // v1.4.0: 病因の摂取減=「必要量の50%以下が1週間超」または「程度を問わず2週間超」(Table 3)。中等度以上は前者、軽度は「2週超」ボタンが入っているときだけ後者
+    const intakePh=s.intake>=2||(s.intake===1&&!!s.i2);
     const etio=intakePh||s.gi||s.sev>=1||s.npo;
     const dx=pheno&&etio;
     const sevWl=(P<=6&&lossU>10)||(P>6&&lossU>20), sevMus=s.mus===2;
     const severe=sevWl||sevMus;
     const scr=(o.MUST.level>=1)||(o.NRS.level>=2)||(o.MNA.level>=2);
-    // v1.3.0: 片方だけ該当は「要確認」(黄)。病因のみは、摂取≤50%・消化器症状・絶食・疾患が中等度以上のときに限る(軽度の疾患だけでは出さない)
+    // v1.4.0: 片方だけ該当は黄色で2種類に分ける。現症のみ=「病因なし」、病因のみ=「現症なし」。
+    // 病因のみは、摂取減(≤50%・軽度で2週超)・消化器症状・絶食・疾患が中等度以上のときに限る(軽度の疾患だけでは出さない)
     const etioStrong=intakePh||s.gi||s.npo||s.sev>=2;
-    const part=!dx&&((pheno&&!etio)||(!pheno&&etioStrong));
+    const partA=!dx&&pheno&&!etio, partB=!dx&&!pheno&&etioStrong;
+    const scLine='事前スクリーニング(MUST/NRS/MNA-SFのいずれか)'+(scr?'陽性':'陰性');
+    const scNote='  ※原法では陰性なら診断評価の対象外';
     const phLine='現症(≥1):体重減少 '+(wlPh?'○':'×')+' / 低BMI(<'+bTh+') '+(bmiPh?'○':'×')+' / 筋量低下 '+(musPh?'○':'×')+' → '+(pheno?'該当':'非該当');
-    const etLine='病因(≥1):摂取≤50% '+(intakePh?'○':'×')+' / 消化器症状 '+(s.gi?'○':'×')+' / 疾患・炎症 '+(s.sev>=1?'○':'×')+(s.npo?' / 絶食 ○':'')+' → '+(etio?'該当':'非該当');
+    const etLine='病因(≥1):摂取減(≤50%、または軽度で2週超) '+(intakePh?'○':'×')+' / 消化器症状 '+(s.gi?'○':'×')+' / 疾患・炎症 '+(s.sev>=1?'○':'×')+(s.npo?' / 絶食 ○':'')+' → '+(etio?'該当':'非該当');
     const tail=['重症度:体重減少>10%(6か月内)または>20%(6か月超)、筋量の高度減少のいずれかで重度、なければ中等度',
-        '※低BMIの重症度基準は日本人の値が未設定のため判定に使用しない / 筋量は診察の筋肉減少で代用'].concat(dietOn?['※意図的な減量のため体重減少を除外しています(GLIMの現症は「意図しない体重減少」)']:[]);
+        '※低BMIの重症度基準は日本人の値が未設定のため判定に使用しない / 筋量は診察の筋肉減少で代用',
+        '※中等度以上の摂取減は「1週間超」続く前提で判定します(期間は入力できません)'].concat(dietOn?['※意図的な減量のため体重減少を除外しています(GLIMの現症は「意図しない体重減少」)']:[]);
     const src='Cederholm T, et al. Clin Nutr 2019;38:1 Table 3–4、PDF p.4–5 / GLIM日本語概説(JSPEN, 2024.10.10) p.1';
-    if(part){
-      const hint=pheno?['※病因が未入力です。摂取量・消化器症状・疾患・絶食のいずれかに該当すれば診断になります。',
-          '病因が該当した場合の重症度:'+(severe?'重度':'中等度')+'相当(重症度は現症だけで決まります)']
-        :['※現症が基準外です。体重・BMIは基準外のため、筋量(診察の筋肉の減少)を確認してください。'];
-      o.GLIM={main:'要確認',sub:pheno?'病因の確認を':'筋量の確認を',level:1,conf:'ap',lines:[phLine,etLine].concat(hint,tail),src};
+    if(partA){
+      o.GLIM={main:'病因なし',sub:'現症のみ',level:1,conf:'ap',
+        lines:[scLine+(!scr?scNote:''),phLine,etLine,
+          '入力された範囲では病因が該当しないため、GLIMの診断には至りません。体質的なやせか、未把握の病因(摂取減・消化器症状・疾患)がないか確認してください。',
+          '病因が該当した場合の重症度:'+(severe?'重度':'中等度')+'相当(重症度は現症だけで決まります)'].concat(tail),src};
+    }else if(partB){
+      o.GLIM={main:'現症なし',sub:'筋量の確認を',level:1,conf:'ap',
+        lines:[scLine+(!scr?scNote:''),phLine,etLine,
+          '※現症が基準外です。体重・BMIは基準外のため、筋量(診察の筋肉の減少)を確認してください。'].concat(tail),src};
     }else{
       o.GLIM={main:dx?(severe?'重度':'中等度'):'なし',sub:dx?'低栄養':'基準非該当',level:!dx?0:(severe?3:2),conf:'ap',
-        lines:['事前スクリーニング(MUST/NRS/MNA-SFのいずれか)'+(scr?'陽性':'陰性')+(!scr&&dx?'  ※原法では陰性なら診断評価の対象外':''),phLine,etLine].concat(tail),src};
+        lines:[scLine+(!scr&&dx?scNote:''),phLine,etLine].concat(tail),src};
     }
   }
   // ---- 採血系
@@ -309,7 +318,7 @@ function checks(s,R){return RULES.filter(r=>r.on(s,R)).map(r=>({id:r.id,kind:r.k
 /* ================= UI ================= */
 // 評価法の説明(v1.3.0)。t=呼び名 d=説明 a=本アプリでの扱い
 const DESC={
- GLIM:{t:'国際合意の低栄養診断基準',d:'「現症(体重減少・低BMI・筋肉量の減少)」と「病因(食事摂取量の減少・消化吸収の障害、疾患による炎症)」の両方がそろうと低栄養と診断し、重症度(中等度/重度)を判定します。原法では、先にスクリーニングで陽性を確認します。',a:'筋量は診察の「筋肉の減少」で代用します。低BMIの重症度は使いません。現症は「意図しない体重減少」なので、意図的な減量は「意図的減量」ボタンで除外できます。'},
+ GLIM:{t:'国際合意の低栄養診断基準',d:'「現症(体重減少・低BMI・筋肉量の減少)」と「病因(食事摂取量の減少・消化吸収の障害、疾患による炎症)」の両方がそろうと低栄養と診断し、重症度(中等度/重度)を判定します。食事摂取量の減少は「必要量の50%以下が1週間超」または「程度を問わず2週間超」です。原法では、先にスクリーニングで陽性を確認します。',a:'筋量は診察の「筋肉の減少」で代用します。低BMIの重症度は使いません。現症は「意図しない体重減少」なので、意図的な減量は「意図的減量」ボタンで除外できます。食事摂取量が「軽度」のときは「2週超」ボタンで病因に含められます。「中等度」以上は1週間超続く前提で判定します。'},
  SGA:{t:'病歴と身体所見による総合評価',d:'病歴(体重・食事摂取の変化、消化器症状、活動性)と身体所見(皮下脂肪・筋肉の減少、浮腫・腹水)から、栄養状態をA(良好)・B(中等度の低栄養、またはその疑い)・C(高度の低栄養)に分類する方法です。特別な機器は要りません。',a:'診察の代わりに入力した4所見から推定する「SGA相当」です。判定規則は当アプリ独自です。体重減少の意図は区別しません(原著も区別の記載なし)。'},
  MNA:{t:'高齢者向けの6項目スクリーニング',d:'主に65歳以上が対象です。「食事量の減少」「体重減少」「移動能力」「精神的ストレス・急性疾患」「認知症・うつ」「BMI(測れなければ下腿周囲長)」を合計14点で評価します(12–14良好/8–11低栄養のおそれ/0–7低栄養)。',a:'BMIのみ対応で、下腿周囲長は使いません。体重減少は3か月分に按分します。体重減少の意図は区別しません(原典も区別しません)。'},
  NRS:{t:'入院患者向けのスクリーニング(ESPEN推奨)',d:'まず初期4問で絞り込み、陽性なら「栄養障害の程度(体重減少・BMI・摂取量)」「疾患の重症度」「70歳以上」を加点します。合計3点以上で栄養リスクありと判定します。',a:'「全身状態不良」は移動能力で代用します。体重減少の意図は区別しません(原典も区別しません)。'},
@@ -330,7 +339,7 @@ const USES={
  alb:['CONUT','GNRI','PNI'],tlc:['CONUT','PNI'],tc:['CONUT']
 };
 const s={sex:'F',h:139,w:42,age:80,pw:42,pi:2,intake:0,sev:0,mob:0,cog:0,fat:0,mus:0,
-  npo:false,gi:false,edema:false,diet:false,labs:true,alb:3.5,tlc:1500,tc:160};
+  npo:false,gi:false,edema:false,diet:false,i2:false,labs:true,alb:3.5,tlc:1500,tc:160};
 const NUM={
  h:{lab:'身長',unit:'cm',min:100,max:200,step:1,dec:0},
  w:{lab:'体重',unit:'kg',min:20,max:120,step:0.5,dec:1},
@@ -359,7 +368,7 @@ function cardNum(k){const c=NUM[k];
  return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span>${k==='pw'?'<button class="dt" id="dt" data-dt aria-pressed="false" hidden>意図的減量</button>':''}<span class="vl"><span id="v_${k}"></span><i>${c.unit}</i></span></div>
  <div class="ctl"><button class="sb" data-k="${k}" data-d="-1" aria-label="${c.lab}を減らす">−</button><input type="range" data-k="${k}" min="${c.min}" max="${c.max}" step="${c.step}" aria-label="${c.lab}"><button class="sb" data-k="${k}" data-d="1" aria-label="${c.lab}を増やす">＋</button></div>${badges(k)}</div>`}
 function cardOpt(k){const c=OPT[k];
- return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span><span class="ht" id="h_${k}"></span></div>
+ return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span>${k==='intake'?'<button class="dt" id="i2" data-i2 aria-pressed="false" hidden>2週超</button>':''}<span class="ht" id="h_${k}"></span></div>
  <div class="sgs">${c.opts.map((t,i)=>`<button class="sg" data-k="${k}" data-v="${i}">${t}</button>`).join('')}</div>${badges(k)}</div>`}
 function cardTog(k){
  return `<button class="cd tgc" id="c_${k}" data-in="${k}" data-t="${k}" aria-pressed="false"><div class="l1r"><span class="nm">${TAGS[k]}</span><span class="sw"></span></div>${USES[k]?badges(k):'<div class="bd"><span>CONUT</span><span>GNRI</span><span>PNI</span></div>'}</button>`}
@@ -387,6 +396,7 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button,.chip');if(!b)return;
   if(b.dataset.ack!==undefined){const g=b.dataset.ack;if(ack.has(g))ack.delete(g);else ack.add(g);update();return;}
   if(b.dataset.dt!==undefined){s.diet=!s.diet;update();return;}
+  if(b.dataset.i2!==undefined){s.i2=!s.i2;update();return;}
   if(b.id==='wn'){setView(null,!chkOpen);return;}
   if(b.classList.contains('sb')){if(e.detail===0)stepBtn(b);return;}   // タッチ/マウスはpointerdownで処理済み。キーボードのみここで処理
   if(b.dataset.t){s[b.dataset.t]=!s[b.dataset.t];update();return;}
@@ -425,6 +435,7 @@ let lastR=null;
 function update(fromSlider){
   for(const k in NUM){const c=NUM[k];$('v_'+k).textContent=s[k].toFixed(c.dec);
     const r=document.querySelector(`input[data-k="${k}"]`);if(!fromSlider||document.activeElement!==r)r.value=s[k];}
+  if(s.intake!==1)s.i2=false;   // 「2週超」は摂取量が「軽度」のときだけ有効。他に切り替えたら自動オフ
   const R=calc(s);lastR=R;
   for(const k in OPT){const c=OPT[k];
     document.querySelectorAll(`.sg[data-k="${k}"]`).forEach(b=>{const v=+b.dataset.v;const on=v===s[k];
@@ -441,6 +452,7 @@ function update(fromSlider){
     ch.className='chip '+(r.level<0?'ln':'l'+r.level)+(focus===n?' fo':'');
     ch.querySelector('.n').textContent=NAME[n]+(n==='PNI'?'(目安)':'');
     ch.querySelector('.m').textContent=r.main;ch.querySelector('.s').textContent=r.sub;
+    ch.querySelector('.m').style.fontSize=(r.main.length>=4&&/[^\x00-\x7f]/.test(r.main))?'16px':'';   // 「病因なし」「現症なし」は幅に収める
     if(r.level>=0){valid++;if(r.level>=2)risk++;}
   });
   $('cnt').innerHTML=`中等度以上<br><b>${risk}</b> / ${valid} 手法`;
@@ -453,6 +465,8 @@ function update(fromSlider){
   // 意図的減量ボタン(体重減少5%以上でのみ表示。5%未満になったら自動オフ)
   if(s.diet&&R.loss<5)s.diet=false;
   {const dt=$('dt');dt.hidden=!(R.loss>=5);dt.classList.toggle('on',!!s.diet);dt.setAttribute('aria-pressed',String(!!s.diet));}
+  // 2週超ボタン(摂取量「軽度」のときだけ表示)
+  {const p=$('i2');p.hidden=s.intake!==1;p.classList.toggle('on',!!s.i2);p.setAttribute('aria-pressed',String(!!s.i2));}
   // ⚠入力の確認
   const CK=checks(s,R),un=CK.filter(c=>!ack.has(c.sig));
   if(!CK.length&&chkOpen){chkOpen=false;document.body.classList.toggle('sheetopen',!!focus);}
