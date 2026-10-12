@@ -143,7 +143,7 @@ body.sheetopen .wrap{padding-bottom:52vh}
 <div class="sheet" id="sheet" role="dialog" aria-label="計算の内訳"></div>
 
 <script>
-const APP_VER='1.4.0';
+const APP_VER='1.4.1';
 //CALC-START
 const PERIODS=[1,2,3,6,12];
 // Lorentz式の標準体重(Bouillanne 2005, GNRIの原法)
@@ -208,7 +208,7 @@ function calc(s){
       lines:['A 食事量の減少 '+A+'(通常=2 / 軽〜中等度減=1 / 高度減=0)',
         'B 3か月の体重減少 '+B+'('+kg3.toFixed(1)+'kg'+(P>3?'・3か月分に按分':'')+'。3kg以上=0 / 1〜3kg=2 / 1kg未満=3)',
         'C 移動能力 '+C,'D 精神的ストレス・急性疾患 '+D+'(重症度≥中等度 または 絶食で「あり」)','E 神経・精神的問題 '+E,
-        'F1 BMI '+F+'(<19=0 / 19–21=1 / 21–23=2 / ≥23=3)','合計 '+t+'/14(12–14良好 / 8–11おそれ / 0–7低栄養)'].concat(dietOn?[NX]:[]),
+        'F1 BMI '+F+'(<19=0 / 19–21=1 / 21–23=2 / ≥23=3)','合計 '+t+'/14(12–14良好 / 8–11おそれ / 0–7低栄養)'].concat(s.age<65?['※65歳未満は原法(MNA-SF)の対象外です。参考値として扱ってください']:[]).concat(dietOn?[NX]:[]),
       src:'日本語版MNA-SF用紙(Nestlé, 2009改訂) p.1 / Kaiser MJ, J Nutr Health Aging 2009;13:782'};
   }
   // ---- GLIM (Cederholm 2019 + 日本語概説 JSPEN 2024.10)
@@ -310,7 +310,10 @@ const RULES=[
  {id:5,kind:'整合',deps:['sev','mob'],on:s=>s.sev===3&&s.mob===0,
   msg:()=>'疾患の重症度が「重度」で、移動能力が「外出可」です。移動能力は合っていますか？'},
  {id:6,kind:'整合',deps:['w','pw','edema'],on:s=>!s.edema&&s.w>=s.pw*1.05,
-  msg:s=>'現在の体重が以前より +'+((s.w/s.pw-1)*100).toFixed(1)+'% 重いです。体重と以前の体重を入れ替えていませんか？ 浮腫・腹水はありませんか？'}
+  msg:s=>'現在の体重が以前より +'+((s.w/s.pw-1)*100).toFixed(1)+'% 重いです。体重と以前の体重を入れ替えていませんか？ 浮腫・腹水はありませんか？'},
+ // v1.4.1: 浮腫・腹水ONのとき、体重が乾体重(浮腫・腹水を除いた推定値)かを問う。体重を使うMUST・NRS・MNA・GLIM・GNRIは入力体重をそのまま使う(SGAのみ浮腫を考慮)
+ {id:7,kind:'入力',deps:['w','pw','edema'],on:s=>!!s.edema,
+  msg:()=>'浮腫・腹水がオンです。体重・以前の体重は、浮腫・腹水を除いた推定値(乾体重)ですか？ MUST・NRS・MNA-SF・GLIM・GNRIは入力された体重をそのまま使います(SGAだけ浮腫を考慮して体重減少を割り引きます)。'}
 ];
 function checks(s,R){return RULES.filter(r=>r.on(s,R)).map(r=>({id:r.id,kind:r.kind,text:r.msg(s,R),sig:r.id+'|'+r.deps.map(k=>s[k]).join(',')}));}
 //CHK-END

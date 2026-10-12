@@ -1,6 +1,6 @@
 // 栄養スクリーニング一発判定 — Service Worker
 // 版数は index.html の APP_VER と揃えること
-const CACHE_NAME='nutrition-screening-v1.4.0';
+const CACHE_NAME='nutrition-screening-v1.4.1';
 const ASSETS=['./','./index.html','./icon-180.png','./icon-512.png'];
 
 self.addEventListener('install',e=>{
