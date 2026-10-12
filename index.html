@@ -91,19 +91,36 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 
 /* ---- 詳細シート ---- */
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:440px;margin:0 auto;background:#fff;border-radius:16px 16px 0 0;
-box-shadow:0 -6px 24px rgba(30,50,90,.28);padding:10px 14px calc(12px + env(safe-area-inset-bottom));max-height:46vh;overflow:auto;
+box-shadow:0 -6px 24px rgba(30,50,90,.28);padding:10px 14px calc(12px + env(safe-area-inset-bottom));max-height:52vh;overflow:auto;
 transform:translateY(105%);transition:transform .22s ease}
 .sheet.open{transform:none}
-.sh{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.sh{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
 .sh .t{font-size:15px;font-weight:800}
 .sh .r{font-size:13px;font-weight:700;color:var(--mute)}
-.sh .x{margin-left:auto;border:0;background:#eef1f8;border-radius:50%;width:28px;height:28px;font-size:15px;color:#4a5876;padding:0}
+.sh .x{align-self:center;margin-left:auto;border:0;background:#eef1f8;border-radius:50%;width:28px;height:28px;font-size:15px;color:#4a5876;padding:0}
 .cf{display:inline-block;font-size:10.5px;border-radius:6px;padding:1px 7px;font-weight:700;margin-bottom:4px}
 .cf.ok{background:#dff3ec;color:#177a5d}.cf.ap{background:#fdf0d4;color:#9a6c00}.cf.es{background:#fde1e1;color:#a52b2b}.cf.rf{background:#e4e9f4;color:#4a5876}
 .sb2{font-size:12.5px;line-height:1.65}
 .src{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);font-size:10.5px;color:var(--mute);line-height:1.55}
 .note{font-size:10px;color:var(--mute);line-height:1.6;margin:8px 4px 0}
-body.sheetopen .wrap{padding-bottom:46vh}
+body.sheetopen .wrap{padding-bottom:52vh}
+/* v1.3.0 説明文・⚠入力確認 */
+.sub{font-size:10px;color:var(--mute);margin:-1px 0 4px;font-weight:600}
+.ds{font-size:10.5px;line-height:1.6;color:#4a5876;margin:0 0 3px}
+.ap{font-size:10px;line-height:1.55;color:#6a7691;margin:0 0 6px;padding:2px 0 2px 7px;border-left:3px solid #c9d6ef;background:#f6f8fc}
+.wn{border:1px solid #f0d28a;background:#fdf0d4;color:#9a6c00;border-radius:10px;font-size:12px;font-weight:800;padding:2px 8px;line-height:1.3}
+.wn[hidden]{display:none}
+.wn.read{background:#eef1f8;border-color:var(--line);color:#8793ad}
+.it{border:1px solid var(--line);border-radius:10px;padding:7px 9px;margin:6px 0;font-size:12px;line-height:1.55}
+.it .k{display:inline-block;font-size:9.5px;font-weight:800;border-radius:5px;padding:0 6px;margin-right:5px;background:#fde1e1;color:#a52b2b}
+.it .k.g{background:#e4e9f4;color:#4a5876}
+.ok-btn{display:block;margin:5px 0 0 auto;border:1px solid var(--line);background:#eef1f8;border-radius:8px;font-size:11px;font-weight:700;color:#4a5876;padding:3px 10px}
+.it.done{opacity:.55}.it.done .ok-btn{background:#dff3ec;color:#177a5d;border-color:#bfe6d8}
+.foot{font-size:10px;color:var(--mute);line-height:1.6;margin-top:6px}
+.ht.nt{color:#9a6c00;font-weight:700}
+.dt{font-size:9.5px;font-weight:700;border:1px solid #c9d6ef;background:#f6f8fc;color:#5b6882;border-radius:9px;padding:0 6px;line-height:15px;white-space:nowrap;flex:none}
+.dt[hidden]{display:none}
+.dt.on{background:var(--blue);border-color:var(--blue);color:#fff}
 </style>
 </head>
 <body>
@@ -112,6 +129,7 @@ body.sheetopen .wrap{padding-bottom:46vh}
   <div class="bar">
     <div class="bmi"><b id="bmi">--</b>BMI</div>
     <div class="ver" id="ver"></div>
+    <button class="wn" id="wn" hidden aria-label="入力の確認"></button>
     <div class="cnt" id="cnt"></div>
   </div>
   <div class="chips r5" id="chips1"></div>
@@ -125,7 +143,7 @@ body.sheetopen .wrap{padding-bottom:46vh}
 <div class="sheet" id="sheet" role="dialog" aria-label="計算の内訳"></div>
 
 <script>
-const APP_VER='1.2.1';
+const APP_VER='1.3.1';
 //CALC-START
 const PERIODS=[1,2,3,6,12];
 // Lorentz式の標準体重(Bouillanne 2005, GNRIの原法)
@@ -137,19 +155,22 @@ function calc(s){
   const hm=s.h/100, bmi=s.w/(hm*hm);
   const lossKg=Math.max(0,s.pw-s.w), loss=lossKg/s.pw*100;
   const P=PERIODS[s.pi];
+  // v1.3.1: 意図的な減量(体重減少5%以上のときだけ有効)。MUSTとGLIMは原典が「意図しない体重減少」に限るため、この2つだけ体重減少を0として扱う
+  const dietOn=!!s.diet&&loss>=5, lossU=dietOn?0:loss;
+  const NX='※意図的な減量でも体重減少を除外していません(この評価法の原典は意図の区別をしていません)';
   const o={};
   const NA=()=>({main:'—',sub:'採血なし',level:-1,conf:'ok',lines:['採血データなし(スイッチをオンにして入力)']});
 
   // ---- MUST (BAPEN: Elia 2003)  BMI>20:0 / 18.5–20:1 / <18.5:2、体重減少 <5%:0 / 5–10%:1 / >10%:2、急性疾患で5日超の絶食:+2
   {
     const b=bmi>20?0:(bmi>=18.5?1:2);
-    const w=loss<5?0:(loss<=10?1:2);
+    const w=lossU<5?0:(lossU<=10?1:2);
     const a=s.npo?2:0, t=b+w+a;
     o.MUST={main:String(t),sub:t===0?'低リスク':(t===1?'中リスク':'高リスク'),level:t===0?0:(t===1?1:3),conf:'ok',
       lines:['BMIスコア '+b+'(BMI '+bmi.toFixed(1)+')',
         '体重減少スコア '+w+'('+loss.toFixed(1)+'% / '+P+'か月'+(P>6?'・原法は3〜6か月。参考値':'')+')',
         '急性疾患の影響 '+a+'(5日以上ほぼ絶食:'+(s.npo?'あり':'なし')+')',
-        '合計 '+t+'(0=低 / 1=中 / ≥2=高リスク)'],
+        '合計 '+t+'(0=低 / 1=中 / ≥2=高リスク)'].concat(dietOn?['※意図的な減量のため体重減少を除外しています(原典は「意図しない体重減少」を数える)']:[]),
       src:'BAPEN「MUST」報告書(Elia, 2003) Step1–4の表、PDF p.63'};
   }
   // ---- NRS-2002 (Kondrup 2003)
@@ -170,7 +191,7 @@ function calc(s){
       o.NRS={main:'—',sub:'初期陰性',level:0,conf:'ap',lines:lines.concat(['最終スクリーニング不要(原法では週1回再評価)']),src};
     }else{
       o.NRS={main:String(t),sub:t>=3?'リスクあり':'リスクなし',level:t>=3?2:0,conf:'ap',
-        lines:lines.concat(['栄養障害スコア '+nut+'(体重減少 '+wl+' / BMI+全身状態 '+bs+' / 摂取量 '+is+' の最大値)','疾患重症度スコア '+dis,'年齢≥70歳 +'+ag,'合計 '+t+'(≥3で栄養リスクあり)','※「全身状態不良」は移動能力(室内以下)で代用']),src};
+        lines:lines.concat(['栄養障害スコア '+nut+'(体重減少 '+wl+' / BMI+全身状態 '+bs+' / 摂取量 '+is+' の最大値)','疾患重症度スコア '+dis,'年齢≥70歳 +'+ag,'合計 '+t+'(≥3で栄養リスクあり)','※「全身状態不良」は移動能力(室内以下)で代用'].concat(dietOn?[NX]:[])),src};
     }
   }
   // ---- MNA-SF (日本語版用紙 / Kaiser 2009)
@@ -187,28 +208,38 @@ function calc(s){
       lines:['A 食事量の減少 '+A+'(通常=2 / 軽〜中等度減=1 / 高度減=0)',
         'B 3か月の体重減少 '+B+'('+kg3.toFixed(1)+'kg'+(P>3?'・3か月分に按分':'')+'。3kg以上=0 / 1〜3kg=2 / 1kg未満=3)',
         'C 移動能力 '+C,'D 精神的ストレス・急性疾患 '+D+'(重症度≥中等度 または 絶食で「あり」)','E 神経・精神的問題 '+E,
-        'F1 BMI '+F+'(<19=0 / 19–21=1 / 21–23=2 / ≥23=3)','合計 '+t+'/14(12–14良好 / 8–11おそれ / 0–7低栄養)'],
+        'F1 BMI '+F+'(<19=0 / 19–21=1 / 21–23=2 / ≥23=3)','合計 '+t+'/14(12–14良好 / 8–11おそれ / 0–7低栄養)'].concat(dietOn?[NX]:[]),
       src:'日本語版MNA-SF用紙(Nestlé, 2009改訂) p.1 / Kaiser MJ, J Nutr Health Aging 2009;13:782'};
   }
   // ---- GLIM (Cederholm 2019 + 日本語概説 JSPEN 2024.10)
   {
-    const wlPh=(P<=6&&loss>5)||(P>6&&loss>10);
+    const wlPh=(P<=6&&lossU>5)||(P>6&&lossU>10);
     const bTh=s.age<70?18.5:20;
     const bmiPh=bmi<bTh, musPh=s.mus>=1;
     const pheno=wlPh||bmiPh||musPh;
     const intakePh=s.intake>=2;
     const etio=intakePh||s.gi||s.sev>=1||s.npo;
     const dx=pheno&&etio;
-    const sevWl=(P<=6&&loss>10)||(P>6&&loss>20), sevMus=s.mus===2;
+    const sevWl=(P<=6&&lossU>10)||(P>6&&lossU>20), sevMus=s.mus===2;
     const severe=sevWl||sevMus;
     const scr=(o.MUST.level>=1)||(o.NRS.level>=2)||(o.MNA.level>=2);
-    o.GLIM={main:dx?(severe?'重度':'中等度'):'なし',sub:dx?'低栄養':'基準非該当',level:!dx?0:(severe?3:2),conf:'ap',
-      lines:['事前スクリーニング(MUST/NRS/MNA-SFのいずれか)'+(scr?'陽性':'陰性')+(!scr&&dx?'  ※原法では陰性なら診断評価の対象外':''),
-        '現症(≥1):体重減少 '+(wlPh?'○':'×')+' / 低BMI(<'+bTh+') '+(bmiPh?'○':'×')+' / 筋量低下 '+(musPh?'○':'×')+' → '+(pheno?'該当':'非該当'),
-        '病因(≥1):摂取≤50% '+(intakePh?'○':'×')+' / 消化器症状 '+(s.gi?'○':'×')+' / 疾患・炎症 '+(s.sev>=1?'○':'×')+(s.npo?' / 絶食 ○':'')+' → '+(etio?'該当':'非該当'),
-        '重症度:体重減少>10%(6か月内)または>20%(6か月超)、筋量の高度減少のいずれかで重度、なければ中等度',
-        '※低BMIの重症度基準は日本人の値が未設定のため判定に使用しない / 筋量は診察の筋肉減少で代用'],
-      src:'Cederholm T, et al. Clin Nutr 2019;38:1 Table 3–4、PDF p.4–5 / GLIM日本語概説(JSPEN, 2024.10.10) p.1'};
+    // v1.3.0: 片方だけ該当は「要確認」(黄)。病因のみは、摂取≤50%・消化器症状・絶食・疾患が中等度以上のときに限る(軽度の疾患だけでは出さない)
+    const etioStrong=intakePh||s.gi||s.npo||s.sev>=2;
+    const part=!dx&&((pheno&&!etio)||(!pheno&&etioStrong));
+    const phLine='現症(≥1):体重減少 '+(wlPh?'○':'×')+' / 低BMI(<'+bTh+') '+(bmiPh?'○':'×')+' / 筋量低下 '+(musPh?'○':'×')+' → '+(pheno?'該当':'非該当');
+    const etLine='病因(≥1):摂取≤50% '+(intakePh?'○':'×')+' / 消化器症状 '+(s.gi?'○':'×')+' / 疾患・炎症 '+(s.sev>=1?'○':'×')+(s.npo?' / 絶食 ○':'')+' → '+(etio?'該当':'非該当');
+    const tail=['重症度:体重減少>10%(6か月内)または>20%(6か月超)、筋量の高度減少のいずれかで重度、なければ中等度',
+        '※低BMIの重症度基準は日本人の値が未設定のため判定に使用しない / 筋量は診察の筋肉減少で代用'].concat(dietOn?['※意図的な減量のため体重減少を除外しています(GLIMの現症は「意図しない体重減少」)']:[]);
+    const src='Cederholm T, et al. Clin Nutr 2019;38:1 Table 3–4、PDF p.4–5 / GLIM日本語概説(JSPEN, 2024.10.10) p.1';
+    if(part){
+      const hint=pheno?['※病因が未入力です。摂取量・消化器症状・疾患・絶食のいずれかに該当すれば診断になります。',
+          '病因が該当した場合の重症度:'+(severe?'重度':'中等度')+'相当(重症度は現症だけで決まります)']
+        :['※現症が基準外です。体重・BMIは基準外のため、筋量(診察の筋肉の減少)を確認してください。'];
+      o.GLIM={main:'要確認',sub:pheno?'病因の確認を':'筋量の確認を',level:1,conf:'ap',lines:[phLine,etLine].concat(hint,tail),src};
+    }else{
+      o.GLIM={main:dx?(severe?'重度':'中等度'):'なし',sub:dx?'低栄養':'基準非該当',level:!dx?0:(severe?3:2),conf:'ap',
+        lines:['事前スクリーニング(MUST/NRS/MNA-SFのいずれか)'+(scr?'陽性':'陰性')+(!scr&&dx?'  ※原法では陰性なら診断評価の対象外':''),phLine,etLine].concat(tail),src};
+    }
   }
   // ---- 採血系
   if(!s.labs){ o.CONUT=NA(); o.GNRI=NA(); o.PNI=NA(); }
@@ -254,14 +285,39 @@ function calc(s){
         '体重減少 '+loss.toFixed(1)+'%('+['<5%','5–10%','>10%'][wlCat]+')'+(s.edema&&wlCat>0?' → 浮腫・腹水ありのため1段階割引':''),
         '皮下脂肪 '+['なし','軽〜中','高度'][s.fat]+' / 筋肉 '+['なし','軽〜中','高度'][s.mus],
         'C:体重減少>10% かつ 高度の身体所見。B:主要所見2つ以上、または >10%、または高度の身体所見。他はA',
-        '※本来は診察に基づく主観的判定。ここは「SGA相当」の推定(迷えばAとする原法の方針)'],
+        '※本来は診察に基づく主観的判定。ここは「SGA相当」の推定(迷えばAとする原法の方針)'].concat(dietOn?[NX]:[]),
       src:'Detsky AS, et al. JPEN 1987;11:8 、PDF p.1–2'};
   }
-  return {bmi,loss,out:o};
+  return {bmi,loss,dietOn,out:o};
 }
 //CALC-END
 
+//CHK-START  入力の確認(⚠)。入力は変えず、問いかけるだけ。診断には使わない
+const RULES=[
+ {id:1,kind:'入力',deps:['w','pw','diet'],on:(s,R)=>!s.diet&&R.loss>20,
+  msg:(s,R)=>'体重減少 −'+R.loss.toFixed(1)+'%。以前の体重('+s.pw.toFixed(1)+'kg)の入力は合っていますか？意図的な減量なら、以前の体重の欄の「意図的減量」を押してください。'},
+ {id:2,kind:'入力',deps:['h','w'],on:(s,R)=>R.bmi<14||R.bmi>35,
+  msg:(s,R)=>'BMI '+R.bmi.toFixed(1)+(R.bmi>35?'(35超・高度肥満の範囲)':'(14未満・極端なやせ)')+'。身長・体重の入力は合っていますか？'},
+ {id:5,kind:'整合',deps:['sev','mob'],on:s=>s.sev===3&&s.mob===0,
+  msg:()=>'疾患の重症度が「重度」で、移動能力が「外出可」です。移動能力は合っていますか？'},
+ {id:6,kind:'整合',deps:['w','pw','edema'],on:s=>!s.edema&&s.w>=s.pw*1.05,
+  msg:s=>'現在の体重が以前より +'+((s.w/s.pw-1)*100).toFixed(1)+'% 重いです。体重と以前の体重を入れ替えていませんか？ 浮腫・腹水はありませんか？'}
+];
+function checks(s,R){return RULES.filter(r=>r.on(s,R)).map(r=>({id:r.id,kind:r.kind,text:r.msg(s,R),sig:r.id+'|'+r.deps.map(k=>s[k]).join(',')}));}
+//CHK-END
+
 /* ================= UI ================= */
+// 評価法の説明(v1.3.0)。t=呼び名 d=説明 a=本アプリでの扱い
+const DESC={
+ GLIM:{t:'国際合意の低栄養診断基準',d:'「現症(体重減少・低BMI・筋肉量の減少)」と「病因(食事摂取量の減少・消化吸収の障害、疾患による炎症)」の両方がそろうと低栄養と診断し、重症度(中等度/重度)を判定します。原法では、先にスクリーニングで陽性を確認します。',a:'筋量は診察の「筋肉の減少」で代用します。低BMIの重症度は使いません。現症は「意図しない体重減少」なので、意図的な減量は「意図的減量」ボタンで除外できます。'},
+ SGA:{t:'病歴と身体所見による総合評価',d:'病歴(体重・食事摂取の変化、消化器症状、活動性)と身体所見(皮下脂肪・筋肉の減少、浮腫・腹水)から、栄養状態をA(良好)・B(中等度の低栄養、またはその疑い)・C(高度の低栄養)に分類する方法です。特別な機器は要りません。',a:'診察の代わりに入力した4所見から推定する「SGA相当」です。判定規則は当アプリ独自です。体重減少の意図は区別しません(原著も区別の記載なし)。'},
+ MNA:{t:'高齢者向けの6項目スクリーニング',d:'主に65歳以上が対象です。「食事量の減少」「体重減少」「移動能力」「精神的ストレス・急性疾患」「認知症・うつ」「BMI(測れなければ下腿周囲長)」を合計14点で評価します(12–14良好/8–11低栄養のおそれ/0–7低栄養)。',a:'BMIのみ対応で、下腿周囲長は使いません。体重減少は3か月分に按分します。体重減少の意図は区別しません(原典も区別しません)。'},
+ NRS:{t:'入院患者向けのスクリーニング(ESPEN推奨)',d:'まず初期4問で絞り込み、陽性なら「栄養障害の程度(体重減少・BMI・摂取量)」「疾患の重症度」「70歳以上」を加点します。合計3点以上で栄養リスクありと判定します。',a:'「全身状態不良」は移動能力で代用します。体重減少の意図は区別しません(原典も区別しません)。'},
+ MUST:{t:'成人用の栄養スクリーニング(BAPEN)',d:'外来・病棟・在宅で使えます。「BMI」「意図しない体重減少」「急性疾患で5日以上食事がとれない(見込みを含む)」の3つを点数化します。0点で低、1点で中、2点以上で高リスクとし、リスクごとに対応手順が決まっています。',a:'原典は「意図しない体重減少」を数えます。意図的な減量は「意図的減量」ボタン(体重減少5%以上で表示)で除外できます。'},
+ GNRI:{t:'高齢入院患者向けの指標',d:'血清アルブミン値と「現在体重÷標準体重」の2つだけで計算し、低栄養に関連する合併症・死亡のリスクを層別化します(>98リスクなし/92–98低/82–<92中等度/<82高度)。',a:'標準体重はBMI22で計算します(原法はLorentz式)。体重比は1.0を上限とします。'},
+ CONUT:{t:'血液検査だけで判定する指標',d:'血清アルブミン(たんぱく)、総リンパ球数(免疫能)、総コレステロール(脂質)の3項目を合計し、0–1正常/2–4軽度/5–8中等度/9–12高度と判定します。',a:'総コレステロールがちょうど180のときは1点です(原表は140–180の区分)。'},
+ PNI:{t:'小野寺法(日本発の指標)',d:'「10×血清アルブミン(g/dL)＋0.005×総リンパ球数(/μL)」で計算します。栄養状態と免疫能の両面から、手術前後のリスクを見る指標です。',a:'40と45のカットオフは「目安」です(原典PDF未入手のため未確認)。'}
+};
 const NAME={SGA:'SGA',MUST:'MUST',GLIM:'GLIM',NRS:'NRS-2002',MNA:'MNA-SF',CONUT:'CONUT',GNRI:'GNRI',PNI:'PNI'};
 const CHIP1=['MUST','NRS','MNA','SGA','GLIM'], CHIP2=['CONUT','GNRI','PNI'], ORDER=CHIP1.concat(CHIP2);
 const CONF={ok:['cf ok','原典と一致'],ap:['cf ap','近似(代用項目・按分あり)'],es:['cf es','推定(判定規則は当アプリ独自)'],rf:['cf rf','目安(原典未入手)'],jp:['cf ok','式は原典一致・標準体重は日本標準(BMI22)']};
@@ -274,7 +330,7 @@ const USES={
  alb:['CONUT','GNRI','PNI'],tlc:['CONUT','PNI'],tc:['CONUT']
 };
 const s={sex:'F',h:139,w:42,age:80,pw:42,pi:2,intake:0,sev:0,mob:0,cog:0,fat:0,mus:0,
-  npo:false,gi:false,edema:false,labs:true,alb:3.5,tlc:1500,tc:160};
+  npo:false,gi:false,edema:false,diet:false,labs:true,alb:3.5,tlc:1500,tc:160};
 const NUM={
  h:{lab:'身長',unit:'cm',min:100,max:200,step:1,dec:0},
  w:{lab:'体重',unit:'kg',min:20,max:120,step:0.5,dec:1},
@@ -285,7 +341,7 @@ const NUM={
  tc:{lab:'T-Chol',unit:'mg/dL',min:60,max:300,step:5,dec:0}
 };
 const OPT={
- pi:{lab:'以前の体重の時期',opts:['1','2','3','6','12'],hint:(R)=>PERIODS[s.pi]+'か月前 −'+R.loss.toFixed(1)+'%'},
+ pi:{lab:'以前の体重の時期',opts:['1','2','3','6','12'],hint:(R)=>R.dietOn?'意図的 −'+R.loss.toFixed(1)+'%':PERIODS[s.pi]+'か月前 −'+R.loss.toFixed(1)+'%'},
  intake:{lab:'食事摂取量',opts:['通常','軽度','中等度','高度'],hints:['≥75%','50–75%','25–50%','≤25%']},
  sev:{lab:'疾患の重症度',opts:['なし','軽度','中等度','重度'],hints:['','慢性疾患・骨折・がん','大手術・脳卒中','ICU・移植']},
  mob:{lab:'移動能力',opts:['外出可','室内','臥床'],hints:['自力で外出','室内なら可','寝たきり等']},
@@ -295,11 +351,12 @@ const OPT={
 };
 const TAGS={npo:'5日以上ほぼ絶食',gi:'消化器症状 2週↑',edema:'浮腫・腹水',labs:'採血データあり'};
 const $=id=>document.getElementById(id);
-let focus=null;
+let focus=null,chkOpen=false;
+const ack=new Set();   // 「このままでOK」の確認済み(ルールID＋関係する入力の値)。入力が変わると外れる。保存はしない
 
 function badges(k){return '<div class="bd">'+USES[k].map(n=>`<span data-m="${n}">${NAME[n]==='NRS-2002'?'NRS':NAME[n]}</span>`).join('')+'</div>';}
 function cardNum(k){const c=NUM[k];
- return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span><span class="vl"><span id="v_${k}"></span><i>${c.unit}</i></span></div>
+ return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span>${k==='pw'?'<button class="dt" id="dt" data-dt aria-pressed="false" hidden>意図的減量</button>':''}<span class="vl"><span id="v_${k}"></span><i>${c.unit}</i></span></div>
  <div class="ctl"><button class="sb" data-k="${k}" data-d="-1" aria-label="${c.lab}を減らす">−</button><input type="range" data-k="${k}" min="${c.min}" max="${c.max}" step="${c.step}" aria-label="${c.lab}"><button class="sb" data-k="${k}" data-d="1" aria-label="${c.lab}を増やす">＋</button></div>${badges(k)}</div>`}
 function cardOpt(k){const c=OPT[k];
  return `<div class="cd" id="c_${k}" data-in="${k}"><div class="l1r"><span class="nm">${c.lab}</span><span class="ht" id="h_${k}"></span></div>
@@ -312,7 +369,7 @@ function chipHTML(n){return `<div class="chip ln" id="ch_${n}" data-n="${n}"><di
 $('chips1').innerHTML=CHIP1.map(chipHTML).join('');
 $('chips2').innerHTML=CHIP2.map(chipHTML).join('');
 $('ver').textContent='栄養評価 v'+APP_VER;
-$('note').innerHTML='※判定は参考情報です。診断・治療方針の決定は臨床判断に基づいて行ってください。結果欄をタップすると、その評価法に関わる入力が強調され、計算の内訳と出典が開きます。 v'+APP_VER;
+$('note').innerHTML='※判定は参考情報です。診断・治療方針の決定は臨床判断に基づいて行ってください。結果欄をタップすると、その評価法の説明と、関わる入力の強調、計算の内訳、出典が開きます。⚠は入力の確認です(自動では直しません)。 v'+APP_VER;
 
 function clamp(v,a,b){return Math.min(b,Math.max(a,v))}
 function setVal(k,v){const c=NUM[k];v=Math.round(clamp(v,c.min,c.max)/c.step)*c.step;s[k]=+v.toFixed(2);}
@@ -325,23 +382,44 @@ document.addEventListener('pointerdown',e=>{
   const stop=()=>{clearTimeout(t);clearInterval(rep);document.removeEventListener('pointerup',stop);document.removeEventListener('pointercancel',stop);};
   document.addEventListener('pointerup',stop);document.addEventListener('pointercancel',stop);
 });
-document.addEventListener('contextmenu',e=>{if(e.target.closest('.sb,.sg,.tgc,.chip'))e.preventDefault();});
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.sb,.sg,.tgc,.chip,.dt'))e.preventDefault();});
 document.addEventListener('click',e=>{
   const b=e.target.closest('button,.chip');if(!b)return;
+  if(b.dataset.ack!==undefined){const g=b.dataset.ack;if(ack.has(g))ack.delete(g);else ack.add(g);update();return;}
+  if(b.dataset.dt!==undefined){s.diet=!s.diet;update();return;}
+  if(b.id==='wn'){setView(null,!chkOpen);return;}
   if(b.classList.contains('sb')){if(e.detail===0)stepBtn(b);return;}   // タッチ/マウスはpointerdownで処理済み。キーボードのみここで処理
   if(b.dataset.t){s[b.dataset.t]=!s[b.dataset.t];update();return;}
   if(b.classList.contains('sg')){s[b.dataset.k]=+b.dataset.v;update();return;}
   if(b.parentElement&&b.parentElement.id==='sex'){s.sex=b.dataset.v;update();return;}
-  if(b.id==='sx'){setFocus(null);return;}
+  if(b.id==='sx'){setView(null,false);return;}
   if(b.classList.contains('chip')){setFocus(focus===b.dataset.n?null:b.dataset.n);}
 });
 document.addEventListener('input',e=>{const r=e.target;if(r.type==='range'){setVal(r.dataset.k,+r.value);update(true);}});
 
-function setFocus(n){
-  focus=n;
-  document.body.classList.toggle('sheetopen',!!n);
-  $('app').classList.toggle('focusing',!!n);
+function setView(f,c){
+  focus=f;chkOpen=c;
+  document.body.classList.toggle('sheetopen',!!(f||c));
+  $('app').classList.toggle('focusing',!!f);
   update();
+}
+function setFocus(n){setView(n,false);}
+// ⚠の一覧の自動表示:操作が止まって0.6秒後に開く。同じルールでは条件が消えるまで1回だけ。
+// 指が触れている間・評価法の説明を開いている間・確認済みの項目は開かない。
+const shownIds=new Set();let autoT=null,touching=false;
+document.addEventListener('pointerdown',()=>{touching=true;});
+['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev,()=>{touching=false;}));
+function scheduleAuto(){clearTimeout(autoT);autoT=setTimeout(autoOpen,600);}
+function autoOpen(){
+  if(touching){scheduleAuto();return;}
+  const CK=checks(s,calc(s));
+  const ids=new Set(CK.map(c=>c.id));
+  [...shownIds].forEach(id=>{if(!ids.has(id))shownIds.delete(id);});
+  const fresh=CK.filter(c=>!ack.has(c.sig)&&!shownIds.has(c.id));
+  if(!fresh.length)return;
+  if(focus)return;                       // 評価法の説明を開いている間は割り込まない
+  fresh.forEach(c=>shownIds.add(c.id));
+  if(!chkOpen)setView(null,true);
 }
 let lastR=null;
 function update(fromSlider){
@@ -352,6 +430,7 @@ function update(fromSlider){
     document.querySelectorAll(`.sg[data-k="${k}"]`).forEach(b=>{const v=+b.dataset.v;const on=v===s[k];
       b.className='sg'+(on?' on':'')+(on&&v>0&&k!=='pi'?' w'+Math.min(3,v+(c.opts.length===3?1:0)):'');});
     $('h_'+k).textContent=c.hint?c.hint(R):c.hints[s[k]];}
+  {const hi=$('h_intake');hi.textContent=s.npo?'※絶食前の摂取量で入力':OPT.intake.hints[s.intake];hi.classList.toggle('nt',!!s.npo);}
   document.querySelectorAll('.tgc').forEach(t=>t.setAttribute('aria-pressed',String(!!s[t.dataset.t])));
   document.querySelectorAll('#sex button').forEach(b=>b.classList.toggle('on',b.dataset.v===s.sex));
   ['alb','tlc','tc'].forEach(k=>$('c_'+k).classList.toggle('off',!s.labs));
@@ -371,14 +450,28 @@ function update(fromSlider){
     c.classList.toggle('rel',!!rel);
     c.querySelectorAll('.bd span').forEach(sp=>sp.classList.toggle('on',sp.dataset.m===focus||(focus==='NRS'&&sp.textContent==='NRS')));
   });
+  // 意図的減量ボタン(体重減少5%以上でのみ表示。5%未満になったら自動オフ)
+  if(s.diet&&R.loss<5)s.diet=false;
+  {const dt=$('dt');dt.hidden=!(R.loss>=5);dt.classList.toggle('on',!!s.diet);dt.setAttribute('aria-pressed',String(!!s.diet));}
+  // ⚠入力の確認
+  const CK=checks(s,R),un=CK.filter(c=>!ack.has(c.sig));
+  if(!CK.length&&chkOpen){chkOpen=false;document.body.classList.toggle('sheetopen',!!focus);}
+  const wn=$('wn');wn.hidden=!CK.length;wn.textContent='⚠'+un.length;wn.classList.toggle('read',!un.length);
   // 詳細シート
   const sh=$('sheet');
-  if(focus){
-    const r=R.out[focus],cf=CONF[r.conf];
+  if(chkOpen){
+    sh.innerHTML=`<div class="sh"><span class="t">入力の確認</span><span class="r">${un.length?un.length+'件':'すべて確認済み'}</span><button class="x" id="sx" aria-label="閉じる">✕</button></div>`+
+      CK.map(c=>{const d=ack.has(c.sig);return `<div class="it${d?' done':''}"><span class="k${c.kind==='整合'?' g':''}">${c.kind}</span>${c.text}<button class="ok-btn" data-ack="${c.sig}">${d?'✓ 確認済み':'このままでOK'}</button></div>`;}).join('')+
+      '<div class="foot">「このままでOK」を押すと、その項目だけ消えます。関係する入力を変えると、再び確認します。入力は自動では直しません。</div>';
+    sh.classList.add('open');
+  }else if(focus){
+    const r=R.out[focus],cf=CONF[r.conf],ds=DESC[focus];
     sh.innerHTML=`<div class="sh"><span class="t">${NAME[focus]}</span><span class="r">${r.main}・${r.sub}</span><button class="x" id="sx" aria-label="閉じる">✕</button></div>
+      <div class="sub">${ds.t}</div><p class="ds">${ds.d}</p><p class="ap">本アプリ:${ds.a}</p>
       <span class="${cf[0]}">${cf[1]}</span><div class="sb2">${r.lines.join('<br>')}</div><div class="src">出典:${r.src}</div>`;
     sh.classList.add('open');
   }else sh.classList.remove('open');
+  scheduleAuto();
 }
 update();
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{try{navigator.serviceWorker.register('./sw.js').catch(()=>{});}catch(e){}});}
